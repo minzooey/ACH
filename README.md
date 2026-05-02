@@ -1,4 +1,3 @@
-# ACH    
 # Abundant-Centre Hypothesis — Jangcheon Harbor Dinoflagellates
 
 [![R](https://img.shields.io/badge/R-%3E%3D4.2-blue)](https://www.r-project.org/)
@@ -7,6 +6,7 @@
 > Tests the **Abundant-Centre Hypothesis (ACH)** for 32 dinoflagellate taxa using a 411-day fixed-station monitoring dataset from Jangcheon Harbor, South Korea (2020–2021).  
 > Compares **three niche centre definitions × three distance metrics** (9 settings) and evaluates how functional traits mediate ACH support patterns.
 
+---
 
 ## Overview
 
@@ -18,6 +18,7 @@ The ACH predicts that species abundance peaks near the centre of the environment
 4. Tests the distance–abundance relationship via Spearman's ρ + BH-FDR
 5. Compares which centre definition best supports ACH
 
+---
 
 ## Centre definitions compared
 
@@ -31,6 +32,7 @@ The ACH predicts that species abundance peaks near the centre of the environment
 When a species has a single DMF event, its environmental position on that day is used directly.  
 When multiple events exist, the centroid of all DMF environmental positions is computed.
 
+---
 
 ## Distance metrics
 
@@ -44,6 +46,7 @@ For margin distances, Spearman ρ sign is reversed so that negative ρ always in
 
 > **E9 (DMF-Margin)** requires ≥ 3 DMF events to form a convex hull; otherwise set to `NA`.
 
+---
 
 ## Pipeline
 
@@ -71,6 +74,7 @@ Outputs: ACH heatmap, violin, proportion plots, GAM curves,
          centre comparison summary (Fig 5)
 ```
 
+---
 
 ## Repository structure
 
@@ -114,6 +118,7 @@ ach-dinoflagellate/
 └── README.md
 ```
 
+---
 
 ## Requirements
 
@@ -133,6 +138,7 @@ bayes_pkgs <- c("brms", "posterior")
 All required packages are installed automatically on first run.  
 Tested on **R ≥ 4.2** (macOS / Linux).
 
+---
 
 ## Usage
 
@@ -145,6 +151,7 @@ Tested on **R ≥ 4.2** (macOS / Linux).
 source("run_ACH.R")
 ```
 
+---
 
 ## Bug fixes from original version
 
@@ -164,6 +171,7 @@ source("run_ACH.R")
 | L8 | Logic    | `DOY` coerced to `integer` (was `character`) |
 | W1 | Warning  | Hardcoded absolute paths replaced with relative paths |
 
+---
 
 ## New feature: DMF centre comparison (E7–E9)
 
@@ -181,17 +189,20 @@ The comparison is summarised in `ACH_centre_comparison.csv` and visualised in `F
 - **Fig 5-1**: Median Spearman ρ by centre × distance metric (bar chart + Wilcoxon label)
 - **Fig 5-2**: Pairwise CH vs. DMF ρ scatter (colour = MVE ρ, Euclidean only)
 
+---
 
 ## Links
 
 - Phenology pipeline: [phenology-dinoflagellate](../phenology-dinoflagellate)
 - Functional trait database: see manuscript supplementary materials
 
+---
 
 ## Citation
 
 > [Author(s)]. (*in prep.*). Functional traits mediate the Abundant-Centre Hypothesis in coastal dinoflagellate communities. *Ecology Letters* / *Limnology and Oceanography*.
 
+---
 
 ## License
 

@@ -22,41 +22,39 @@ invisible(lapply(pkgs, library, character.only = TRUE))
 
 # ── 1. Paths ──────────────────────────────────────────────────
 INPUT_DIR  <- "/Users/minjuhee/Desktop/HPLC/7_Jangcheon/3_Phenology"
-RHO_FILE   <- "ACH/Output_260502/ACH_sp_results.csv"
-FT_FILE    <- "dino_functraits_origin.xlsx"
-NICHE_FILE <- "OMI/Output_260506/OMI_results_260506.xlsx"
+RHO_FILE   <- "ACH/Output_260804/ACH_sp_results_corrected.csv"
+FT_FILE    <- "dino_functraits.xlsx"
+NICHE_FILE <- "OMI/Output_260804/OMI_results_260804.xlsx"
 
 WORK_DIR <- file.path(INPUT_DIR, "ACH")
 OUT_DIR  <- file.path(WORK_DIR, paste0("Output_FT", format(Sys.Date(), "%y%m%d")))
 if (!dir.exists(OUT_DIR)) dir.create(OUT_DIR, recursive = TRUE)
 
 # ── 2. Global settings ────────────────────────────────────────
-METHOD      <- "E2"
+METHOD      <- "E5"
 TROPHIC_REF <- "CM"
-CONT_TRAITS <- c("log_ESD", "log_Biovolume", "Speed_max", "Marginality", "Niche_breadth")
-CAT_TRAITS  <- c("Spincule", "Colony", "Trophic_type", "Toxin")
+CONT_TRAITS <- c("log_Biovolume", "Speed_max", "Marginality", "Niche_breadth")
+CAT_TRAITS  <- c("Spicule", "Colony", "Trophic_type", "Cyst")
 
 troph_cols <- c(CM = "#ff7f0e", pSNCM = "#d62728", HET = "#1f77b4", OPA = "#2ca02c")
 
 # ── 3. Load & merge input data ────────────────────────────────
 rho_df <- read.csv(file.path(INPUT_DIR, RHO_FILE)) %>%
   dplyr::filter(setting == METHOD) %>%
-  rename(Species = species)
+  dplyr::rename(Species = species)
 
 nic_df <- read.xlsx(file.path(INPUT_DIR, NICHE_FILE), sheet = "OMI_params") %>%
   dplyr::select(Species, Marginality = OMI, Niche_breadth = Tol)
 
 ft_df <- read.xlsx(file.path(INPUT_DIR, FT_FILE), sheet = "FuncTrait32") %>%
-  dplyr::select(TaxID, Abbrevration, ESD, Biovolume, Spincule, Colony,
-                Speed_max, Trophic_type, Cyst, Toxin) %>%
-  rename(Species = Abbrevration) %>%
+  dplyr::select(TaxID, Abbrevration, Biovolume, Spicule, Colony,
+                Speed_max, Trophic_type, Cyst) %>%
+  dplyr::rename(Species = Abbrevration) %>%
   left_join(nic_df, by = "Species") %>%
   mutate(
-    Toxin         = if_else(Toxin == "None", 0L, 1L),
-    log_ESD       = log10(ESD),
     log_Biovolume = log10(Biovolume)
   ) %>%
-  dplyr::select(-ESD, -Biovolume) %>%
+  dplyr::select(-Biovolume) %>%
   dplyr::filter(
     Species %in% rho_df$Species,
     !(Species == "Nsci" & Trophic_type == "eSNCM"),
@@ -72,14 +70,20 @@ fisher_z_se <- function(n) 1 / sqrt(n - 3)
 rho_df <- rho_df %>%
   mutate(
     z_rho = fisher_z(rho),
-    z_se  = fisher_z_se(n)
+    z_se  = fisher_z_se(n),
+    # ── temporal-AC correction (Method 2: effective-N, Pyper & Peterman 1998) ──
+    # rho itself is unchanged; only its precision (SE) is corrected for
+    # autocorrelation in the 411-day series. z_se uses the nominal n and is
+    # kept as-is for comparability with the original analysis.
+    z_se_eff = fisher_z_se(n_eff)
   )
 
 # final input data
 mydf <- rho_df %>%
-  dplyr::select(Species, setting, ACH, centre, dist_type, n, z_rho, z_se) %>%
+  dplyr::select(Species, setting, ACH, ACH_effN, ACH_boot, ACH_AR1,
+                centre, dist_type, n, n_eff, z_rho, z_se, z_se_eff) %>%
   left_join(ft_df, by = "Species") %>%
-  relocate(c(log_ESD, log_Biovolume), .after = "z_se")
+  relocate(c(log_Biovolume), .after = "z_se")
 
 # ── 5. Helper: significance label ─────────────────────────────
 sig_label <- function(p) {
@@ -165,6 +169,22 @@ pgls_results <- lapply(CONT_TRAITS, function(trait) {
   ci_ols <- confint(ols)["x_std", ]
   p_ols  <- summary(ols)$coefficients["x_std", "Pr(>|t|)"]
   
+  # ── temporal-AC correction (Method 2: effective-N weighted OLS) ──────────
+  # Complements the phylogenetic (PGLS) correction below: this instead
+  # down-weights species whose rho is estimated from a time series with
+  # strong autocorrelation (small n_eff relative to n).
+  sub_effN <- mydf %>%
+    dplyr::select(Species, z_rho, z_se_eff, all_of(trait)) %>%
+    drop_na() %>%
+    dplyr::filter(Species %in% tree$tip.label) %>%
+    as.data.frame()
+  sub_effN$x_std <- scale(sub_effN[[trait]])[, 1]
+  sub_effN$w     <- 1 / (sub_effN$z_se_eff^2)
+  ols_effN   <- lm(z_rho ~ x_std, data = sub_effN, weights = w)
+  b_ols_effN <- coef(ols_effN)["x_std"]
+  ci_ols_effN<- confint(ols_effN)["x_std", ]
+  p_ols_effN <- summary(ols_effN)$coefficients["x_std", "Pr(>|t|)"]
+  
   # Useful function - extract CI from GLS
   extract_gls <- function(mod) {
     if (is.null(mod)) {
@@ -225,11 +245,13 @@ pgls_results <- lapply(CONT_TRAITS, function(trait) {
   data.frame(
     Trait            = trait,   n = nrow(sub),
     Beta_OLS         = b_ols,   CI_lo_OLS    = ci_ols[1], CI_hi_OLS    = ci_ols[2], p_OLS        = p_ols,
+    Beta_OLS_effN    = b_ols_effN, CI_lo_OLS_effN = ci_ols_effN[1], CI_hi_OLS_effN = ci_ols_effN[2], p_OLS_effN = p_ols_effN,
     Beta_PGLS_BM     = bm$beta, CI_lo_PGLS_BM     = bm$ci_lo,  CI_hi_PGLS_BM     = bm$ci_hi,  p_PGLS_BM    = bm$p,
     Beta_PGLS_Pagel  = pagel$beta, CI_lo_PGLS_Pagel = pagel$ci_lo, CI_hi_PGLS_Pagel = pagel$ci_hi, p_PGLS_Pagel = pagel$p,
     Lambda           = lambda_est,
     Delta_BM         = bm$beta    - b_ols,
     Delta_Pagel      = pagel$beta - b_ols,
+    Delta_effN       = b_ols_effN - b_ols,
     row.names = NULL
   )
 })
@@ -237,9 +259,11 @@ pgls_results <- lapply(CONT_TRAITS, function(trait) {
 pgls_df <- bind_rows(pgls_results) %>%
   mutate(
     p_FDR_OLS        = p.adjust(p_OLS, method = "BH"),
+    p_FDR_OLS_effN   = p.adjust(p_OLS_effN, method = "BH"),
     p_FDR_PGLS_BM    = p.adjust(p_PGLS_BM, method = "BH"),
     p_FDR_PGLS_Pagel = p.adjust(p_PGLS_Pagel, method = "BH"),
     sig_OLS          = sig_label(p_FDR_OLS),
+    sig_OLS_effN     = sig_label(p_FDR_OLS_effN),
     sig_BM           = sig_label(p_FDR_PGLS_BM),
     sig_Pagel        = sig_label(p_FDR_PGLS_Pagel)
   )
@@ -268,7 +292,7 @@ p_k_bar <- ggplot(k_plot, aes(x = Trait, y = K, fill = p_group)) +
     x = NULL, y = "Blomberg's K"
   ) +
   coord_fixed(ratio = 2) +
-  theme_classic(base_size = 12) +
+  theme_classic(base_size = 14) +
   theme(panel.background = element_rect(linewidth = 1, color = "black", fill = NA),
         panel.grid = element_blank(),
         axis.line = element_blank(),
@@ -316,7 +340,7 @@ p_forest <- ggplot(pgls_long,
   scale_y_discrete(limits = rev) +
   labs(x = "Standardised \u03b2 (95% CI)", y = NULL) +
   coord_fixed(ratio = 0.5) +
-  theme_classic(base_size = 12) +
+  theme_classic(base_size = 14) +
   theme(panel.background = element_rect(linewidth = 1, color = "black", fill = NA),
         panel.grid = element_blank(),
         axis.line = element_blank(),
@@ -342,7 +366,7 @@ p_delta <- ggplot(delta_long,
                     name = NULL) +
   labs(x = NULL, y = "\u0394\u03b2") +
   coord_fixed(ratio = 10) +
-  theme_classic(base_size = 12) +
+  theme_classic(base_size = 14) +
   theme(panel.background = element_rect(linewidth = 1, color = "black", fill = NA),
         panel.grid = element_blank(),
         axis.line = element_blank(),
@@ -355,11 +379,12 @@ phylo_panel <- (p_k_bar / p_delta | p_forest) +
   plot_annotation(title = sprintf("Phylogenetic Signal in Functional traits [%s]", METHOD),
     theme = theme(plot.title = element_text(face = "bold", size = 12))
   ) +
-  plot_layout(heights = c(1, 1), widths = c(2, 1))
+  plot_layout(heights = c(1, 1), widths = c(2, 2)) &
+  theme(plot.margin = margin(1, 1, 1, 1))
 
 ggsave(file.path(OUT_DIR, sprintf("FT_ACH_%s_phylosig.pdf", METHOD)),
        phylo_panel, width = 12, height = 8, dpi = 300)
-ggsave(file.path(OUT_DIR, sprintf("FT_ACH_%s_phylosig.png", METHOD)),
+ggsave(file.path(OUT_DIR, sprintf("FT_ACH_%s_phylosig.tiff", METHOD)),
        phylo_panel, width = 12, height = 8, dpi = 300)
 
 # ── 9. 결과 저장 ─────────────────────────────────────────────

@@ -24,9 +24,9 @@ The ACH predicts that species abundance peaks near the centre of the environment
 
 | Centre | Definition | ID |
 |--------|-----------|-----|
-| **CH** | Centroid of Convex Hull vertices in PCA space | E1–E3 |
-| **MVE** | Centre of Minimum Volume Ellipsoid (MASS::cov.mve) | E4–E6 |
-| **DMF** | Centroid of PCA coordinates on Day(s) of Maximum Fitness | E7–E9 |
+| **CH** | Centroid of Convex Hull vertices in PCA space | E1–E2 |
+| **MVE** | Centre of Minimum Volume Ellipsoid (MASS::cov.mve) | E3–E4 |
+| **DMF** | Centroid of PCA coordinates on Day(s) of Maximum Fitness | E5–E6 |
 
 **DMF centre** is derived from phenology analysis output (`5_phenology_variables.xlsx`).  
 When a species has a single DMF event, its environmental position on that day is used directly.  
@@ -38,13 +38,10 @@ When multiple events exist, the centroid of all DMF environmental positions is c
 
 | Metric | Description | Settings |
 |--------|-------------|----------|
-| **Euclidean** | Straight-line distance to centre | E1, E4, E7 |
-| **Mahalanobis** | Covariance-weighted distance to centre | E2, E5, E8 |
-| **Margin** | Interior distance to envelope boundary | E3, E6, E9 |
+| **Euclidean** | Straight-line distance to centre | E1, E3, E5 |
+| **Mahalanobis** | Covariance-weighted distance to centre | E2, E4, E6 |
 
 For margin distances, Spearman ρ sign is reversed so that negative ρ always indicates ACH support (abundance decreases toward the periphery).
-
-> **E9 (DMF-Margin)** requires ≥ 3 DMF events to form a convex hull; otherwise set to `NA`.
 
 ---
 
@@ -61,7 +58,7 @@ make_envelope()  ─────────────────────
     DMF centre (from phenology output, date-matched to PCA)      │
          │
          ▼
-calc_all_dist()  →  9 distance vectors per species (E1–E9)
+calc_all_dist()  →  9 distance vectors per species (E1–E6)
          │
          ▼
 test_sp_ach()    →  Spearman ρ + p-value per species × setting
@@ -153,26 +150,6 @@ source("run_ACH.R")
 
 ---
 
-## Bug fixes from original version
-
-| ID | Severity | Description |
-|----|----------|-------------|
-| B1 | Critical | `dino_sm7` undefined variable → `dino_sm5` |
-| B2 | Critical | `make_envelope` signature / return value completely redesigned to match caller |
-| B3 | Critical | `calc_all_dist` function name and argument mismatch resolved |
-| B4 | Critical | `fit_quad_lm_species` → correct name `fit_quad_lm_sp` |
-| B5 | Moderate | `arrange(., by = "Date")` → `arrange(Date)` |
-| L1 | Logic    | CH margin now uses `p2seg_dist()` (edge distance) not vertex distance |
-| L2 | Logic    | 2D convex hull uses `chull()` instead of `convhulln()` (eliminates centroid bias) |
-| L3 | Logic    | Removed `library()` calls inside function bodies |
-| L4 | Logic    | `if (as.numeric(level))` dead branch in `ellipse_df` removed |
-| L5 | Logic    | `build_model_df` now takes `min_occ` as explicit argument |
-| L7 | Logic    | Hardcoded column indices (`4:37`) replaced with name-based selection |
-| L8 | Logic    | `DOY` coerced to `integer` (was `character`) |
-| W1 | Warning  | Hardcoded absolute paths replaced with relative paths |
-
----
-
 ## New feature: DMF centre comparison (E7–E9)
 
 The DMF (Day of Maximum Fitness) centre is derived from the phenology pipeline:
@@ -186,8 +163,8 @@ The DMF (Day of Maximum Fitness) centre is derived from the phenology pipeline:
 
 The comparison is summarised in `ACH_centre_comparison.csv` and visualised in `Fig5_centre_comparison/`:
 
-- **Fig 5-1**: Median Spearman ρ by centre × distance metric (bar chart + Wilcoxon label)
-- **Fig 5-2**: Pairwise CH vs. DMF ρ scatter (colour = MVE ρ, Euclidean only)
+- **Fig 3-1**: Median Spearman ρ by centre × distance metric (bar chart + Wilcoxon label)
+- **Fig 3-2**: Pairwise CH vs. DMF ρ scatter (colour = MVE ρ, Euclidean only)
 
 ---
 

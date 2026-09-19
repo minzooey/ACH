@@ -21,14 +21,14 @@ plot_sp_niche <- function(sp, env_obj, site_xy) {
   hull_df <- tibble::as_tibble(env_obj$ch_v, .name_repair = "minimal") %>%
     stats::setNames(c("Axis1", "Axis2"))
 
-  ell_df <- ellipse_df(env_obj$mve_c, env_obj$mve_cov, level = 0.975)
+  ell_df <- ellipse_df(env_obj$mve_c, env_obj$mve_cov, level = 0.9) # 0.975
 
   p <- ggplot2::ggplot() +
     ggplot2::geom_hline(yintercept = 0, linetype = 2, colour = "grey90") +
     ggplot2::geom_vline(xintercept = 0, linetype = 2, colour = "grey90") +
-    ggplot2::geom_point(data = pts_all,
-                        ggplot2::aes(Axis1, Axis2),
-                        colour = "grey70", size = 0.5, alpha = 0.8) +
+    #ggplot2::geom_point(data = pts_all,
+    #                    ggplot2::aes(Axis1, Axis2),
+    #                    colour = "grey70", size = 0.5, alpha = 0.8) +
     ggplot2::geom_polygon(data = hull_df,
                           ggplot2::aes(Axis1, Axis2),
                           fill    = scales::alpha("#FFD230", 0.20),
@@ -38,7 +38,7 @@ plot_sp_niche <- function(sp, env_obj, site_xy) {
                        colour = "#1A7595", linewidth = 0.9) +
     ggplot2::geom_point(data = pts_sp,
                         ggplot2::aes(Axis1, Axis2, size = log_abund),
-                        colour = "black", alpha = 0.9) +
+                        fill = "black", colour = NULL, alpha = 0.4, pch = 16) +
     # CH centroid
     ggplot2::geom_point(ggplot2::aes(x = env_obj$ch_c[1], y = env_obj$ch_c[2]),
                         shape = 4, size = 4, stroke = 1.2, colour = "#FFD230") +
@@ -57,7 +57,9 @@ plot_sp_niche <- function(sp, env_obj, site_xy) {
     ggplot2::scale_size_continuous(
       name = expression(log[10](1 + abundance))
     ) +
-    ggplot2::labs(title = sp, x = "Axis1", y = "Axis2") +
+    scale_x_continuous(limits = c(-5, 8), breaks = seq(-5, 8, 2.5)) + 
+    scale_y_continuous(limits = c(-6, 5), breaks = seq(-5, 5, 2.5)) +
+    ggplot2::labs(title = sp, x = "OMI1", y = "OMI2") +
     ggplot2::theme_bw(base_size = 11) +
     ggplot2::theme(
       plot.title       = ggplot2::element_text(face = "bold", hjust = 0.5),

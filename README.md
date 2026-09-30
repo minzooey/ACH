@@ -166,21 +166,9 @@ The comparison is summarised in `ACH_centre_comparison.csv` and visualised in `F
 - **Fig 3-1**: Median Spearman ρ by centre × distance metric (bar chart + Wilcoxon label)
 - **Fig 3-2**: Pairwise CH vs. DMF ρ scatter (colour = MVE ρ, Euclidean only)
 
----
-
-## Links
-
-- Phenology pipeline: [phenology-dinoflagellate](../phenology-dinoflagellate)
-- Functional trait database: see manuscript supplementary materials
 
 ---
 
 ## Citation
 
 
-
----
-
-## License
-
-MIT © [Author Name] — see [LICENSE](LICENSE) for details.

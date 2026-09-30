@@ -177,7 +177,7 @@ The comparison is summarised in `ACH_centre_comparison.csv` and visualised in `F
 
 ## Citation
 
-> [Author(s)]. (*in prep.*). Functional traits mediate the Abundant-Centre Hypothesis in coastal dinoflagellate communities. *Ecology Letters* / *Limnology and Oceanography*.
+
 
 ---
 
